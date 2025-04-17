@@ -2,7 +2,9 @@ from langchain.chat_models import init_chat_model
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from typing import List
 import pandas as pd
+from dotenv import load_dotenv
 
+load_dotenv()
 class Agent:
     def __init__(self, role_name: str, init_prompt: str, model: str = 'llama3-8b-8192', temperature: float = 0.1):
         self.name = role_name
