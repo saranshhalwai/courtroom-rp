@@ -1,3 +1,4 @@
+import json
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from typing import List
@@ -6,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 class Agent:
-    def __init__(self, role_name: str, init_prompt: str, model: str = 'llama3-8b-8192', temperature: float = 0.1):
+    def __init__(self, role_name: str, init_prompt: str, model: str = 'meta-llama/llama-4-scout-17b-16e-instruct', temperature: float = 0.1):
         self.name = role_name
         self.chat_model = init_chat_model(
             model=model,
@@ -42,39 +43,7 @@ class Moderator:
         self.messages.append(HumanMessage(content=user_input))
         response = self.chat_model.invoke(self.messages)
         self.messages.append(response)
-        return eval(response.content)  # You can switch to json.loads for safety
-
-class Judge:
-    def __init__(self, init_prompt: str, model: str = 'llama3-8b-8192'):
-        self.chat_model = init_chat_model(
-            model=model,
-            temperature=0.1,
-            model_provider='groq'
-        )
-        self.system_message = SystemMessage(content=init_prompt)
-        self.messages = [self.system_message]
-
-    def deliberate(self, trial_transcript: str) -> str:
-        self.messages.append(HumanMessage(content=f"Full transcript:\n{trial_transcript}\nPlease give your final ruling."))
-        response = self.chat_model.invoke(self.messages)
-        self.messages.append(response)
-        return response.content
-
-class Participant:
-    def __init__(self, init_prompt: str, model: str = 'llama3-8b-8192'):
-        self.chat_model = init_chat_model(
-            model=model,
-            temperature=0.7,
-            model_provider='groq'
-        )
-        self.system_message = SystemMessage(content=init_prompt)
-        self.messages: List = [self.system_message]
-
-    def speak(self, user_msg: str) -> str:
-        self.messages.append(HumanMessage(content=user_msg))
-        response = self.chat_model.invoke(self.messages)
-        self.messages.append(response)
-        return response.content
+        return json.loads(response.content)  
 
 def run_trial(case_description: str, phase="opening"):
 
@@ -84,36 +53,43 @@ def run_trial(case_description: str, phase="opening"):
                     You have a thorough understanding of the relevant processes in the field
                     of criminal procedure. To ensure the fairness of trial procedures,
                     you should protect the right of the defendants
-                    and other participants in the proceedings."""
+                    and other participants in the proceedings.
+                    Keep your response under 100 words."""
 
     prosecution_prompt = """You are an experienced prosecutor, specializing in the field of
                     criminal litigation. Your task is to ensure that the facts of a
                     crime are accurately and promptly identified, that the law is
                     correctly applied, that criminals are punished, and that the innocent
-                    are protected from criminal prosecution."""
+                    are protected from criminal prosecution.
+                    Keep your response under 100 words."""
     
     defense_prompt = """You are an experienced advocate. The responsibility of a defender is
                     to present materials and opinions on the defendant’s innocence, mitigation,
                     or exemption from criminal responsibility in light of the facts and the law,
                     and to safeguard the litigation rights and other lawful rights
-                    and interests of the suspect or defendant."""
+                    and interests of the suspect or defendant.
+                    Keep your response under 100 words."""
 
     defendant_prompt = """You are the defendant in this case. You are accused of a crime,
                     but you maintain your innocence. You have the right to defend yourself
                     and to present evidence in your favor. You should be honest and
-                    straightforward in your responses, but also strategic in your defense."""
+                    straightforward in your responses, but also strategic in your defense.
+                    Keep your response under 100 words."""
     
     plaintiff_prompt = """You are the plaintiff in this case. You have brought a lawsuit
                     against the defendant, alleging that they have committed a crime
                     against you. You have the right to present your case and to seek
                     justice. You should be clear and concise in your statements,
-                    and you should provide evidence to support your claims."""
+                    and you should provide evidence to support your claims.
+                    Keep your response under 100 words."""
     
     moderator_prompt = """You are the moderator of this case, you do not have a voice during the trial. 
                     Your role is to ensure that the trial proceeds smoothly and fairly.
-                    You will decide who speaks next(via tools).
+                    You will decide who speaks next: Defense, Prosecution, Plaintiff, Defendant, Judge.
                     You also have the ability(via tools) to spawn and despawn agents: witnesses, expert consultants, etc.
                     You should be impartial and ensure that all parties have a fair opportunity to present their case.
+                    Make sure that the speakers do not speak more than 100 words. 
+                    Keep your response under 100 words.
                     """
 
     # === Agent Setup ===
@@ -157,7 +133,7 @@ def run_trial(case_description: str, phase="opening"):
         speaker = decision["next_speaker"]
         prompt = decision["action"]
         if speaker in agents:
-            msg = agents[speaker].act(prompt)
+            msg = agents[speaker].act(last_transcript + "\n" + prompt)
             record(speaker, msg)
         else:
             record("System", f"Unknown speaker: {speaker}")
@@ -172,7 +148,12 @@ def run_trial(case_description: str, phase="opening"):
 
 
 
-df = pd.read_csv("data.csv")
-case = df.loc(1)
+# df = pd.read_csv("data.csv")
+# case = df['text'][0]
+
+case = """The State alleges that John Doe stole proprietary algorithms from his former employer 
+            and used them at a competitor. The charge is felony theft of trade secrets. 
+            No physical evidence shows direct copying, but server logs indicate large downloads 
+            two days before Doe resigned."""
 run_trial(case)
 	
