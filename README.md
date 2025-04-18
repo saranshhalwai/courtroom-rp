@@ -25,8 +25,6 @@ This project is a courtroom simulation system designed to model legal proceeding
 
 - `Agent`: Represents a generic participant in the trial.
 - `Moderator`: Manages trial phases and speaker decisions.
-- `Judge`: Delivers the final ruling based on the trial transcript.
-- `Participant`: Represents additional roles like witnesses or consultants.
 
 ## How It Works
 
@@ -45,8 +43,8 @@ This project is a courtroom simulation system designed to model legal proceeding
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/your-repo/courtroom-simulation.git
-cd courtroom-simulation
+git clone https://github.com/saranshhalwai/courtroom-rp.git
+cd courtroom-rp
 ```
 
 2. Install dependencies:
@@ -57,7 +55,7 @@ pip install -r requirements.txt
 
 3. Add a `.env` file with necessary environment variables for the chat model.
 
-4. Prepare a `data.csv` file containing case descriptions.
+<!-- 4. Prepare a `data.csv` file containing case descriptions. -->
 
 ## Usage
 
@@ -73,13 +71,13 @@ The system reads a case description from `data.csv` and simulates a trial. The t
 
 ## Future Enhancements
 
-- Add support for more roles (e.g., witnesses, expert consultants).
+- Add support for dynamic agent creation.
 - Improve decision-making logic for the moderator.
 - Enhance the user interface for better visualization of the trial.
 
 ## License
 
-This project is licensed under the MIT License. See the `LICENSE` file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
