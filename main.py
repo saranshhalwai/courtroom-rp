@@ -15,9 +15,9 @@ class Agent:
             model_provider='groq'
         )
         self.system_message = SystemMessage(content=init_prompt)
-        self.messages: List = [self.system_message]
 
     def act(self, user_msg: str) -> str:
+        self.messages: List = [self.system_message]
         self.messages.append(HumanMessage(content=user_msg))
         response = self.chat_model.invoke(self.messages)
         self.messages.append(response)
@@ -31,9 +31,10 @@ class Moderator:
             model_provider='groq'
         )
         self.system_message = SystemMessage(content=system_prompt)
-        self.messages = [self.system_message]
+        
 
     def decide_next(self, phase: str, last_transcript: str) -> dict:
+        self.messages = [self.system_message]
         user_input = (
             f"Current Phase: {phase}\n"
             f"Transcript so far:\n{last_transcript}\n\n"
@@ -43,6 +44,7 @@ class Moderator:
         self.messages.append(HumanMessage(content=user_input))
         response = self.chat_model.invoke(self.messages)
         self.messages.append(response)
+        print(response.content) # Debugging line
         return json.loads(response.content)  
 
 def run_trial(case_description: str, phase="opening"):
@@ -54,43 +56,46 @@ def run_trial(case_description: str, phase="opening"):
                     of criminal procedure. To ensure the fairness of trial procedures,
                     you should protect the right of the defendants
                     and other participants in the proceedings.
-                    Keep your response under 100 words."""
+                    At the end of the trial, you are supposed to deliver the verdict.
+                    Keep your response concise."""
 
     prosecution_prompt = """You are an experienced prosecutor, specializing in the field of
                     criminal litigation. Your task is to ensure that the facts of a
                     crime are accurately and promptly identified, that the law is
                     correctly applied, that criminals are punished, and that the innocent
                     are protected from criminal prosecution.
-                    Keep your response under 100 words."""
+                    Keep your response concise."""
     
     defense_prompt = """You are an experienced advocate. The responsibility of a defender is
                     to present materials and opinions on the defendant’s innocence, mitigation,
                     or exemption from criminal responsibility in light of the facts and the law,
                     and to safeguard the litigation rights and other lawful rights
                     and interests of the suspect or defendant.
-                    Keep your response under 100 words."""
+                    Keep your response concise."""
 
     defendant_prompt = """You are the defendant in this case. You are accused of a crime,
                     but you maintain your innocence. You have the right to defend yourself
                     and to present evidence in your favor. You should be honest and
                     straightforward in your responses, but also strategic in your defense.
-                    Keep your response under 100 words."""
+                    Keep your response concise."""
     
     plaintiff_prompt = """You are the plaintiff in this case. You have brought a lawsuit
                     against the defendant, alleging that they have committed a crime
                     against you. You have the right to present your case and to seek
                     justice. You should be clear and concise in your statements,
                     and you should provide evidence to support your claims.
-                    Keep your response under 100 words."""
+                    Keep your response concise."""
     
     moderator_prompt = """You are the moderator of this case, you do not have a voice during the trial. 
                     Your role is to ensure that the trial proceeds smoothly and fairly.
                     You will decide who speaks next: Defense, Prosecution, Plaintiff, Defendant, Judge.
-                    You also have the ability(via tools) to spawn and despawn agents: witnesses, expert consultants, etc.
                     You should be impartial and ensure that all parties have a fair opportunity to present their case.
-                    Make sure that the speakers do not speak more than 100 words. 
-                    Keep your response under 100 words.
+                    Make sure that the speakers stick to their roles and keep concise responses.
+                    Keep your response concise.
+                    When the trial has concluded, make the judge deliver the verdict. 
                     """
+# TODO: Dynamic agent creation 
+# You also have the ability(via tools) to spawn and despawn agents: witnesses, expert consultants, etc.
 
     # === Agent Setup ===
     defense = Agent("Defense", defense_prompt)
