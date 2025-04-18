@@ -7,12 +7,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 class Agent:
-    def __init__(self, role_name: str, init_prompt: str, model: str = 'meta-llama/llama-4-scout-17b-16e-instruct', temperature: float = 0.1):
+    def __init__(self, role_name: str, init_prompt: str, model: str = 'llama3:latest', temperature: float = 0.1):
         self.name = role_name
         self.chat_model = init_chat_model(
             model=model,
             temperature=temperature,
-            model_provider='groq'
+            model_provider='ollama'
         )
         self.system_message = SystemMessage(content=init_prompt)
 
@@ -24,11 +24,11 @@ class Agent:
         return response.content
 
 class Moderator:
-    def __init__(self, system_prompt: str, model: str = 'llama3-8b-8192'):
+    def __init__(self, system_prompt: str, model: str = 'llama3:latest'):
         self.chat_model = init_chat_model(
             model=model,
             temperature=0.2,
-            model_provider='groq'
+            model_provider='ollama'
         )
         self.system_message = SystemMessage(content=system_prompt)
         
@@ -40,6 +40,7 @@ class Moderator:
             f"Transcript so far:\n{last_transcript}\n\n"
             "Who should speak next and why? Output format:\n"
             '{"next_speaker": "...", "action": "..."}'
+            'Do not add any other text or explanations.\n'
         )
         self.messages.append(HumanMessage(content=user_input))
         response = self.chat_model.invoke(self.messages)
