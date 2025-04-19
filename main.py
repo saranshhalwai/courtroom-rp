@@ -2,9 +2,9 @@ import json
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from typing import List
-# import pandas as pd
+import pandas as pd
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
+from tqdm import tqdm
 
 load_dotenv()
 
@@ -111,7 +111,7 @@ def run_trial(case_description: str, phase="opening"):
                     Keep your response under 50  words and stick to your role. What is your response?"""
     
     moderator_prompt = """You are the moderator, you do not have a voice during the trial. 
-                    Your role is to ensure that the trial proceeds realistically.
+                    Your role is to ensure that the trial proceeds realistically towards the verdict.
                     You will decide who speaks next: Defense, Prosecution, Plaintiff, Defendant, Judge(These are pre-existing agents. You should not use tool call to create them.).
                     You may also call any previously summoned agents by name.
                     You also have the ability(via tools) to spawn new agents: witnesses, expert consultants, etc. use this ability when a new agent needs to be brought in.
@@ -198,16 +198,36 @@ def run_trial(case_description: str, phase="opening"):
 
 
 # TODO: Load case from CSV
-# df = pd.read_csv("data.csv")
-# case = df['text'][0]
+df = pd.read_csv("cases.csv")
+case = df['text'][0]
 
-case = """The State alleges that Alex Rivera assaulted a local shopkeeper, Thomas Gale, during a robbery at a convenience store on March 3rd. 
-No physical evidence directly links Rivera to the scene — no fingerprints, no DNA. 
-However, a nearby traffic camera captured a blurry figure entering the store shortly before the incident. The time matches Rivera's phone GPS location near the area. Rivera claims he was visiting a friend two blocks away and only passed the store by chance.
-The shopkeeper is in the hospital and unable to testify yet.
-The prosecution argues Rivera was the only person with motive, based on a prior altercation with the shopkeeper over alleged theft a month earlier.
-The defense argues the camera footage is inconclusive, and GPS only shows proximity — not presence inside. The friend Rivera claims to have visited cannot be reached for comment.
-There is a forensic expert who analyzed the video, and a delivery driver who may have seen someone running from the store around the same time.
-"""
-run_trial(case)
+def generate_notes(text, max_tokens=6000):
+    chunks = [text[i:i + max_tokens] for i in range(0, len(text), max_tokens)]
+    summarized_notes = ""
+
+    for idx in tqdm(range(len(chunks)), desc="Generating notes"):
+        response = init_chat_model(
+            model='llama3:latest',
+            temperature=0.1,
+            model_provider='ollama'
+        ).invoke(
+            [
+                SystemMessage(content="Summarize the following text. Retain the key points"),
+                HumanMessage(content=chunks[idx])
+            ]
+        )
+
+        summarized_notes += response.content + "\n"
+
+    return summarized_notes
+
+# case = """The State alleges that Alex Rivera assaulted a local shopkeeper, Thomas Gale, during a robbery at a convenience store on March 3rd. 
+# No physical evidence directly links Rivera to the scene — no fingerprints, no DNA. 
+# However, a nearby traffic camera captured a blurry figure entering the store shortly before the incident. The time matches Rivera's phone GPS location near the area. Rivera claims he was visiting a friend two blocks away and only passed the store by chance.
+# The shopkeeper is in the hospital and unable to testify yet.
+# The prosecution argues Rivera was the only person with motive, based on a prior altercation with the shopkeeper over alleged theft a month earlier.
+# The defense argues the camera footage is inconclusive, and GPS only shows proximity — not presence inside. The friend Rivera claims to have visited cannot be reached for comment.
+# There is a forensic expert who analyzed the video, and a delivery driver who may have seen someone running from the store around the same time.
+# """
+run_trial(generate_notes(case))
 	
