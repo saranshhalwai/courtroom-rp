@@ -3,10 +3,6 @@ from langchain.chat_models import init_chat_model
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from typing import List
 # import pandas as pd
-from dotenv import load_dotenv
-from pydantic import BaseModel, Field
-
-load_dotenv()
 
 class Agent:
     def __init__(self, role_name: str, init_prompt: str, model: str = 'llama3:latest', temperature: float = 0.1):
@@ -43,9 +39,9 @@ class Moderator:
         f"Current Phase: {phase}\n"
         f"Active Agents: {agent_list}\n"
         f"Transcript so far:\n{last_transcript}\n\n"
-        "Who should speak next and why (descriptive)?\n"
+        "Who should speak next, why(desribe what the agent has to do clearly) and what phase the trial should be in(opening, arguments, closing, verdict)?\n"
         'Only respond with a JSON object. Do not include any commentary or explanation. Output nothing except:'
-        '{"next_speaker": "...", "action": "..."}\n'
+        '{"next_speaker": "...", "action": "...", "phase": "..."}\n'
         "Do not add any extra text at all even when it seems appropriate \n"
         )
 
@@ -62,11 +58,9 @@ class Moderator:
             return {"next_speaker": "Judge", "action": "Deliver the verdict."}
     
 def handle_phase_transition(phase, transcript_len):
-    if phase == "opening" and transcript_len >= 4:
-        return "arguments"
-    if phase == "arguments" and transcript_len >= 14:
+    if phase == "arguments":
         return "closing"
-    if phase == "closing" and transcript_len >= 17:
+    if phase == "closing" and transcript_len >= 22:
         return "verdict"
     return phase
 
@@ -81,46 +75,50 @@ def run_trial(case_description: str, phase="opening"):
                     and other participants in the proceedings.
                     At the end of the trial, you are supposed to deliver the verdict. There is no jury.
                     DO NOT include any narration, summaries, jury dialogue, or reactions. 
-                    Keep your response under 50  words and stick to your role. What is your response?"""
+                    Keep your response under 50 words and DO NOT break character at all costs. Only reply for your own role."""
 
     prosecution_prompt = """You are an experienced prosecutor, specializing in the field of
                     criminal litigation. Your task is to ensure that the facts of a
                     crime are accurately and promptly identified, that the law is
                     correctly applied, that criminals are punished, and that the innocent
                     are protected from criminal prosecution.
-                    Keep your response under 50  words and stick to your role only. What is your response?"""
+                    DO NOT include any narration, summaries, jury dialogue, or reactions.
+                    Keep your response under 50 words and DO NOT break character at all costs only. Only reply for your own role."""
     
     defense_prompt = """You are an experienced advocate. The responsibility of a defender is
                     to present materials and opinions on the defendant's innocence, mitigation,
                     or exemption from criminal responsibility in light of the facts and the law,
                     and to safeguard the litigation rights and other lawful rights
                     and interests of the suspect or defendant.
-                    Keep your response under 50  words and stick to your role only. What is your response?"""
+                    DO NOT include any narration, summaries, jury dialogue, or reactions.
+                    Keep your response under 50 words and DO NOT break character at all costs only. Only reply for your own role."""
 
     defendant_prompt = """You are the defendant in this case. You are accused of a crime,
                     but you maintain your innocence. You have the right to defend yourself
                     and to present evidence in your favor. You should be honest and
                     straightforward in your responses, but also strategic in your defense.
-                    Keep your response under 50  words and stick to your role. What is your response?"""
+                    DO NOT include any narration, summaries, jury dialogue, or reactions.
+                    Keep your response under 50 words and DO NOT break character at all costs. Only reply for your own role.?"""
     
     plaintiff_prompt = """You are the plaintiff in this case. You have brought a lawsuit
                     against the defendant, alleging that they have committed a crime
                     against you. You have the right to present your case and to seek
-                    justice. You should be clear and under 50  words and stick to your role in your statements,
+                    justice. You should be clear and under 50  words and DO NOT break character at all costs in your statements,
                     and you should provide evidence to support your claims.
-                    Keep your response under 50  words and stick to your role. What is your response?"""
+                    DO NOT include any narration, summaries, jury dialogue, or reactions.
+                    Keep your response under 50 words and DO NOT break character at all costs. Only reply for your own role.?"""
     
     moderator_prompt = """You are the moderator, you do not have a voice during the trial. 
                     Your role is to ensure that the trial proceeds realistically.
                     You will decide who speaks next: Defense, Prosecution, Plaintiff, Defendant, Judge(These are pre-existing agents. You should not use tool call to create them.).
                     You may also call any previously summoned agents by name.
-                    You also have the ability(via tools) to spawn new agents: witnesses, expert consultants, etc. use this ability when a new agent needs to be brought in.
+                    You also have the ability to spawn new agents: witnesses, expert consultants, etc. use this ability when a new agent needs to be brought in.
                     Do not call yourself.
                     Make sure that the speakers stick to their roles and keep under 50 words responses.
-                    Keep your response under 50  words and stick to your role.
-                    The trial will proceed in the following phases:
+                    The trial must proceed in the following phases:
                     opening statements by both sides, arguments, closing statements by both sides, and verdict by the judge.
-                    When the trial has concluded, make the judge deliver the verdict. 
+                    Only you have the ability to change the phase of the trial so do it when needed. 
+                    When the trial has concluded, make the judge deliver the verdict. There is no jury.  
                     """
     # TODO: Dynamic agent deletion
     # You also have the ability(via tools) to spawn and despawn agents: witnesses, expert consultants, etc.
@@ -154,12 +152,12 @@ def run_trial(case_description: str, phase="opening"):
 
     # === Trial Loop ===
     print("⚖️ Trial begins...\n")
-    record("Moderator", f"Phase: {phase}. Case: {case_description}")
+    record("SYSTEM", f"Phase: {phase}. Case: {case_description}")
 
     while True:
         last_transcript = format_transcript()
         decision = mod.decide_next(phase, last_transcript, active_agent_names)
-
+        phase = decision["phase"].lower()
         # Judge ending the trial
         if decision["next_speaker"] == "Judge" and phase == "verdict":
             msg = agents["Judge"].act(last_transcript)
@@ -168,16 +166,22 @@ def run_trial(case_description: str, phase="opening"):
 
         speaker = decision["next_speaker"]
         prompt = decision["action"]
+        if speaker == "Prosecutor":
+            speaker = "Prosecution"
+        if speaker == "Defense Attorney":
+            speaker = "Defense"
         if speaker in agents:
             msg = agents[speaker].act(last_transcript + "\n" + prompt)
             record(speaker, msg)
         else:
             # Fallback to auto-create agent
-            record("Moderator", f"⚠️ Auto-created agent: {speaker}")
+            record("SYSTEM", f"⚠️ Auto-created agent: {speaker}")
             role_prompt = (
                 f"You are {speaker}, a relevant participant in this trial. "
-                f"The moderator has asked you to: {prompt}. "
+                f"You are asked to: {prompt}. "
                 "Stay under 50 words. Respond in character and do not narrate."
+                "DO NOT include any narration, summaries, jury dialogue, or reactions."
+                "Also do not acknowlege the presence of a moderator."
             )
             new_agent = Agent(speaker, role_prompt)
             agents[speaker] = new_agent
@@ -185,12 +189,11 @@ def run_trial(case_description: str, phase="opening"):
             msg = new_agent.act(last_transcript + "\n" + prompt)
             record(speaker, msg)
 
-        # Phase transitions
-        new_phase = handle_phase_transition(phase, len(transcript))
-        if new_phase != phase:
-            phase = new_phase
-            record("Moderator", f"--- Transition to Phase: {phase} ---")
+        # force phase transition
+        if len(transcript) > 20:
+            phase = 'closing'
 
+        
     with open("transcript.md", "w") as f:
         f.write("# Transcript\n")
         for speaker, msg in transcript:
